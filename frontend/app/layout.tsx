@@ -13,7 +13,7 @@ export default function RootLayout({
       <body>
         <Header />
         {children}
-        <AdSlot adKey="footer-banner" />
+       
 
         <Footer />
       </body>

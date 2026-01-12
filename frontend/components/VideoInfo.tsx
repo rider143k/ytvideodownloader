@@ -4,7 +4,7 @@ interface VideoInfoProps {
   title: string;
   thumbnail: string;
   duration: number;
-  uploader: string;
+  uploader?: string;
 }
 
 export default function VideoInfo({ title, thumbnail, duration, uploader }: VideoInfoProps) {
