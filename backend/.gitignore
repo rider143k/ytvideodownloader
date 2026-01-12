@@ -1,0 +1,8 @@
+node_modules/
+temp/
+.env
+*.log
+.DS_Store
+*.mp4
+*.mp3
+*.webm
