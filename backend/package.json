@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "node test.js"
+    "test": "node test.js",
+    "build": "echo 'Build handled by build.sh'"
   },
   "keywords": ["youtube", "downloader", "yt-dlp"],
   "author": "",
@@ -19,6 +20,7 @@
     "nodemon": "^3.0.1"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: youtube-downloader-backend
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        sync: false
+    autoDeploy: true
