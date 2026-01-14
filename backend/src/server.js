@@ -1,6 +1,5 @@
 // src/server.js
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const apiRoutes = require('./routes/api');
@@ -21,29 +20,40 @@ if (process.env.NODE_ENV === 'production') {
   console.log('✅ Production mode: yt-dlp added to PATH');
 }
 
-// CORS configuration
+// ===================== CORS CONFIG ===================== //
+
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:3000',
-  'http://localhost:3001'
+  process.env.FRONTEND_URL,                // env frontend
+  'http://localhost:3000',                 // local dev
+  /\.vercel\.app$/,                        // vercel preview + prod
+  /\.onrender\.com$/,                      // render backend
+  /\.railway\.app$/,                       // railway backend (future)
+  'https://yourfuturedomain.com'           // custom domain placeholder
 ].filter(Boolean);
 
-app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || !process.env.FRONTEND_URL) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: false,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Content-Disposition', 'Content-Length']
-}));
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  if (origin && allowedOrigins.some(rule =>
+    (rule instanceof RegExp ? rule.test(origin) : rule === origin)
+  )) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
+
+  // handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+// ======================================================== //
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -51,37 +61,20 @@ app.use(express.json({ limit: '10mb' }));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  next();
-});
-
-// Request logging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memory: process.memoryUsage()
+    uptime: process.uptime()
   });
 });
 
 // API Routes
 app.use('/api', apiRoutes);
-
-// Error handler
-app.use((err, req, res, next) => {
-  console.error('Server Error:', err.message);
-  res.status(500).json({ 
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message
-  });
-});
 
 // 404 handler
 app.use((req, res) => {
