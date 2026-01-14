@@ -11,12 +11,17 @@ const TEMP_DIR = path.join(__dirname, '../../temp');
 function extractVideoInfo(url) {
   return new Promise((resolve, reject) => {
     const args = [
-      '--dump-json',
-      '--no-warnings',
-      '--skip-download',
-      '--no-playlist',
-      url
-    ];
+  '--dump-json',
+  '--no-cache-dir',
+  '--geo-bypass',
+  '--no-check-certificate',
+  '--user-agent=Mozilla/5.0',
+  '--referer=https://www.youtube.com/',
+  '--no-playlist',
+  '--no-warnings',
+  url
+];
+
 
     const ytdlp = spawn('yt-dlp', args);
     let stdout = '';
