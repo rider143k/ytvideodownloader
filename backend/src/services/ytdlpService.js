@@ -6,22 +6,19 @@ const fs = require('fs');
 const TEMP_DIR = path.join(__dirname, '../../temp');
 
 /**
- * Extract video metadata with all available qualities
+ * Extract video metadata using yt-dlp with bot bypass
  */
 function extractVideoInfo(url) {
   return new Promise((resolve, reject) => {
     const args = [
-  '--dump-json',
-  '--no-cache-dir',
-  '--geo-bypass',
-  '--no-check-certificate',
-  '--user-agent=Mozilla/5.0',
-  '--referer=https://www.youtube.com/',
-  '--no-playlist',
-  '--no-warnings',
-  url
-];
-
+      '--dump-json',
+      '--no-warnings',
+      '--skip-download',
+      '--no-playlist',
+      '--extractor-args', 'youtube:player_client=android',
+      '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
+      url
+    ];
 
     const ytdlp = spawn('yt-dlp', args);
     let stdout = '';
@@ -37,7 +34,8 @@ function extractVideoInfo(url) {
 
     ytdlp.on('close', (code) => {
       if (code !== 0) {
-        return reject(new Error(stderr || 'Failed to fetch video info'));
+        console.error('yt-dlp error:', stderr);
+        return reject(new Error('Failed to fetch video info. YouTube may be blocking requests.'));
       }
 
       try {
@@ -57,15 +55,13 @@ function extractVideoInfo(url) {
 
         // Find best format for each quality
         Object.entries(qualityMap).forEach(([key, { height, label }]) => {
-          // Find formats matching this height with video codec
           const matchingFormats = videoFormats.filter(f => 
             f.height === height && 
             f.vcodec && f.vcodec !== 'none' &&
-            f.ext === 'mp4'
+            (f.ext === 'mp4' || f.ext === 'webm')
           );
 
           if (matchingFormats.length > 0) {
-            // Sort by filesize (largest = best quality)
             matchingFormats.sort((a, b) => (b.filesize || 0) - (a.filesize || 0));
             const bestFormat = matchingFormats[0];
 
@@ -111,6 +107,8 @@ function extractVideoInfo(url) {
         formats.sort((a, b) => {
           if (a.quality === 'audio') return 1;
           if (b.quality === 'audio') return -1;
+          if (a.quality === 'best') return -1;
+          if (b.quality === 'best') return 1;
           return parseInt(b.quality) - parseInt(a.quality);
         });
 
@@ -127,11 +125,11 @@ function extractVideoInfo(url) {
       }
     });
 
-    // Timeout after 20 seconds
+    // Timeout after 30 seconds
     setTimeout(() => {
       ytdlp.kill();
       reject(new Error('Request timeout'));
-    }, 20000);
+    }, 30000);
   });
 }
 
@@ -141,7 +139,6 @@ function extractVideoInfo(url) {
 function calculateEstimatedSize(duration, height) {
   if (!duration) return '~';
   
-  // Bitrate estimates (kbps) based on quality
   const bitrateMap = {
     360: 500,
     480: 1000,
@@ -167,7 +164,7 @@ function sanitizeFilename(name) {
 }
 
 /**
- * Download video/audio file using yt-dlp
+ * Download video/audio file using yt-dlp with bot bypass
  */
 function downloadVideoFile(url, formatData) {
   return new Promise((resolve, reject) => {
@@ -177,11 +174,13 @@ function downloadVideoFile(url, formatData) {
     let args;
     
     if (formatData.id === 'mp3') {
-      // MP3 Audio download
+      // MP3 Audio download with bot bypass
       args = [
         '-x',
         '--audio-format', 'mp3',
         '--audio-quality', '0',
+        '--extractor-args', 'youtube:player_client=android',
+        '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
         '--no-warnings',
         '--no-playlist',
         '--no-check-certificates',
@@ -189,12 +188,13 @@ function downloadVideoFile(url, formatData) {
         url
       ];
     } else {
-      // MP4 Video download with AUDIO
+      // MP4 Video download with AUDIO + bot bypass
       if (formatData.format_id) {
-        // Specific quality format + best audio (CRITICAL for sound)
         args = [
           '-f', `${formatData.format_id}+bestaudio[ext=m4a]/bestaudio/best`,
           '--merge-output-format', 'mp4',
+          '--extractor-args', 'youtube:player_client=android',
+          '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
           '--no-warnings',
           '--no-playlist',
           '--no-check-certificates',
@@ -203,10 +203,11 @@ function downloadVideoFile(url, formatData) {
           url
         ];
       } else {
-        // Best quality fallback with audio
         args = [
           '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
           '--merge-output-format', 'mp4',
+          '--extractor-args', 'youtube:player_client=android',
+          '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
           '--no-warnings',
           '--no-playlist',
           '--no-check-certificates',
@@ -223,7 +224,6 @@ function downloadVideoFile(url, formatData) {
     ytdlp.stderr.on('data', (data) => {
       const msg = data.toString();
       stderr += msg;
-      // Show download progress (optional)
       if (msg.includes('%')) {
         process.stdout.write(`\r${msg.trim()}`);
       }
@@ -231,10 +231,10 @@ function downloadVideoFile(url, formatData) {
 
     ytdlp.on('close', (code) => {
       if (code !== 0) {
-        return reject(new Error(stderr || 'Download failed'));
+        console.error('Download error:', stderr);
+        return reject(new Error('Download failed. YouTube may be blocking requests.'));
       }
 
-      // Find downloaded file
       const ext = formatData.id === 'mp3' ? 'mp3' : 'mp4';
       const expectedPath = path.join(TEMP_DIR, `${timestamp}.${ext}`);
 
@@ -242,7 +242,6 @@ function downloadVideoFile(url, formatData) {
         return reject(new Error('Downloaded file not found'));
       }
 
-      // Get actual file size
       const stats = fs.statSync(expectedPath);
       const actualSizeMB = (stats.size / (1024 * 1024)).toFixed(1);
 
