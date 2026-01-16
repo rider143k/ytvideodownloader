@@ -2,30 +2,39 @@
 set -e
 
 echo "========================================="
-echo "🚀 Starting Build Process"
+echo "🚀 Starting Railway Build"
 echo "========================================="
 
-# Step 1: Install yt-dlp
+# Step 1 — Install system deps
 echo ""
-echo "📥 Step 1: Installing yt-dlp..."
-curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o yt-dlp
-chmod a+rx yt-dlp
-export PATH="$PWD:$PATH"
+echo "📥 Updating system packages..."
+apt-get update -y || true
+
+echo ""
+echo "📥 Installing ffmpeg..."
+apt-get install -y ffmpeg || true
+
+# Step 2 — Install yt-dlp
+echo ""
+echo "📥 Installing yt-dlp..."
+curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+chmod +x /usr/local/bin/yt-dlp
 
 # Verify yt-dlp
-if ./yt-dlp --version; then
-    echo "✅ yt-dlp installed successfully"
+echo ""
+if yt-dlp --version; then
+    echo "✅ yt-dlp installed"
 else
-    echo "❌ yt-dlp installation failed"
+    echo "❌ yt-dlp failed"
     exit 1
 fi
 
-# Step 2: Install Node dependencies
+# Step 3 — Install Node deps
 echo ""
-echo "📦 Step 2: Installing Node.js dependencies..."
-npm ci --production
+echo "📦 Installing Node dependencies..."
+npm install --omit=dev --legacy-peer-deps
 
 echo ""
 echo "========================================="
-echo "✅ Build Complete!"
+echo "💯 Railway Build Complete"
 echo "========================================="
