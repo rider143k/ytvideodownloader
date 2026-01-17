@@ -17,7 +17,7 @@ function extractVideoInfo(url) {
       url
     ];
 
-    const ytdlp = spawn('yt-dlp', args);
+    const ytdlp = spawn("python", ["-m", "yt_dlp", ...args]);
     let stdout = '';
     let stderr = '';
 
@@ -185,7 +185,7 @@ function downloadVideoFile(url, formatData) {
       }
     }
 
-    const ytdlp = spawn('yt-dlp', args);
+    const ytdlp = spawn("python", ["-m", "yt_dlp", ...args]);
     let stderr = '';
 
     ytdlp.stderr.on('data', (data) => {
